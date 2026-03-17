@@ -1,0 +1,367 @@
+import uuid
+import streamlit as st
+from engine import compute_affordability, compute_lead_score, compute_flags
+from pdf_report import generate_report_bytes
+from database import create_table, insert_lead
+from storage import upload_pdf_and_get_signed_url
+from emailer import send_agent_email
+
+st.set_page_config(page_title="Home Readiness Form", layout="centered")
+
+create_table()
+
+AGENT_EMAILS = {
+    "richie": "ricardo@rsautomationep.com"
+}
+
+agent_param = st.query_params.get("agent", "unknown")
+agent = agent_param[0] if isinstance(agent_param, list) else agent_param
+agent_email = AGENT_EMAILS.get(agent, None)
+
+st.title("Home Readiness Form")
+st.write("Complete the short form below so your agent can review your information and follow up with next steps.")
+
+if "step" not in st.session_state:
+    st.session_state.step = 1
+
+defaults = {
+    "buyer_name": "",
+    "buyer_phone": "",
+    "buyer_email": "",
+    "timeline": "",
+    "preapproved": "",
+    "rep_agreement_signed": "",
+    "rep_agreement_willing": "",
+    "income": 0.0,
+    "debt": 0.0,
+    "down_payment": 0.0,
+    "target_payment": 0.0,
+    "receives_child_support": "",
+    "pays_child_support": "",
+    "loan_type": "",
+    "credit_bucket": "",
+    "low_credit_known_score": 0,
+    "job_tenure": 0.0,
+}
+
+for key, value in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
+
+progress_map = {
+    1: 0.33,
+    2: 0.66,
+    3: 1.00
+}
+
+st.progress(progress_map[st.session_state.step])
+st.caption(f"Step {st.session_state.step} of 3")
+
+# STEP 1
+if st.session_state.step == 1:
+    st.subheader("1. About You")
+
+    st.session_state.buyer_name = st.text_input(
+        "Full name",
+        value=st.session_state.buyer_name
+    )
+
+    st.session_state.buyer_phone = st.text_input(
+        "Phone number",
+        value=st.session_state.buyer_phone
+    )
+
+    st.session_state.buyer_email = st.text_input(
+        "Email address",
+        value=st.session_state.buyer_email
+    )
+
+    timeline_options = ["", "0-3 months", "3-6 months", "6-12 months", "12+ months"]
+    st.session_state.timeline = st.selectbox(
+        "When are you hoping to buy?",
+        timeline_options,
+        index=timeline_options.index(st.session_state.timeline)
+        if st.session_state.timeline in timeline_options else 0
+    )
+
+    preapproved_options = ["", "Yes", "No"]
+    st.session_state.preapproved = st.selectbox(
+        "Have you already been pre-approved by a lender?",
+        preapproved_options,
+        index=preapproved_options.index(st.session_state.preapproved)
+        if st.session_state.preapproved in preapproved_options else 0
+    )
+
+    rep_signed_options = ["", "Yes", "No"]
+    st.session_state.rep_agreement_signed = st.selectbox(
+        "Have you already signed a representation agreement with an agent?",
+        rep_signed_options,
+        index=rep_signed_options.index(st.session_state.rep_agreement_signed)
+        if st.session_state.rep_agreement_signed in rep_signed_options else 0
+    )
+
+    rep_willing_options = ["", "Yes", "No", "Unsure"]
+    st.session_state.rep_agreement_willing = st.selectbox(
+        "If needed, would you be willing to sign a representation agreement?",
+        rep_willing_options,
+        index=rep_willing_options.index(st.session_state.rep_agreement_willing)
+        if st.session_state.rep_agreement_willing in rep_willing_options else 0
+    )
+
+    col1, col2 = st.columns([1, 1])
+    with col2:
+        if st.button("Next", use_container_width=True):
+            missing = []
+            if not st.session_state.buyer_name.strip():
+                missing.append("Full name")
+            if not st.session_state.buyer_phone.strip():
+                missing.append("Phone number")
+            if not st.session_state.buyer_email.strip():
+                missing.append("Email address")
+            if not st.session_state.timeline:
+                missing.append("Timeline")
+            if not st.session_state.preapproved:
+                missing.append("Pre-approval status")
+            if not st.session_state.rep_agreement_signed:
+                missing.append("Representation agreement status")
+            if not st.session_state.rep_agreement_willing:
+                missing.append("Representation agreement willingness")
+
+            if missing:
+                st.error("Please complete: " + ", ".join(missing))
+            else:
+                st.session_state.step = 2
+                st.rerun()
+
+# STEP 2
+elif st.session_state.step == 2:
+    st.subheader("2. Financial Snapshot")
+
+    st.session_state.income = st.number_input(
+        "Estimated annual household income",
+        min_value=0.0,
+        step=1000.0,
+        value=float(st.session_state.income)
+    )
+
+    st.session_state.debt = st.number_input(
+        "Total annual debt payments",
+        min_value=0.0,
+        step=1000.0,
+        value=float(st.session_state.debt)
+    )
+
+    st.session_state.down_payment = st.number_input(
+        "Estimated down payment available",
+        min_value=0.0,
+        step=1000.0,
+        value=float(st.session_state.down_payment)
+    )
+
+    st.session_state.target_payment = st.number_input(
+        "Comfortable monthly payment",
+        min_value=0.0,
+        step=100.0,
+        value=float(st.session_state.target_payment)
+    )
+
+    yes_no_options = ["", "Yes", "No"]
+
+    st.session_state.receives_child_support = st.selectbox(
+        "Do you receive child support?",
+        yes_no_options,
+        index=yes_no_options.index(st.session_state.receives_child_support)
+        if st.session_state.receives_child_support in yes_no_options else 0
+    )
+
+    st.session_state.pays_child_support = st.selectbox(
+        "Do you pay child support?",
+        yes_no_options,
+        index=yes_no_options.index(st.session_state.pays_child_support)
+        if st.session_state.pays_child_support in yes_no_options else 0
+    )
+
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("Back", use_container_width=True):
+            st.session_state.step = 1
+            st.rerun()
+
+    with col2:
+        if st.button("Next ", use_container_width=True):
+            missing = []
+            if st.session_state.income <= 0:
+                missing.append("Estimated annual household income")
+            if st.session_state.target_payment <= 0:
+                missing.append("Comfortable monthly payment")
+            if not st.session_state.receives_child_support:
+                missing.append("Child support received indicator")
+            if not st.session_state.pays_child_support:
+                missing.append("Child support paid indicator")
+
+            if missing:
+                st.error("Please complete: " + ", ".join(missing))
+            else:
+                st.session_state.step = 3
+                st.rerun()
+
+# STEP 3
+elif st.session_state.step == 3:
+    st.subheader("3. Purchase Goals")
+
+    loan_options = ["", "Conventional", "FHA", "VA"]
+    st.session_state.loan_type = st.selectbox(
+        "Loan type",
+        loan_options,
+        index=loan_options.index(st.session_state.loan_type)
+        if st.session_state.loan_type in loan_options else 0
+    )
+
+    credit_options = ["", "High", "Medium", "Low"]
+    st.session_state.credit_bucket = st.selectbox(
+        "Credit score range",
+        credit_options,
+        index=credit_options.index(st.session_state.credit_bucket)
+        if st.session_state.credit_bucket in credit_options else 0
+    )
+
+    if st.session_state.credit_bucket == "Low":
+        default_score = int(st.session_state.low_credit_known_score) if st.session_state.low_credit_known_score else 550
+        st.session_state.low_credit_known_score = st.number_input(
+            "If known, what is your approximate credit score?",
+            min_value=300,
+            max_value=850,
+            step=1,
+            value=default_score
+        )
+    else:
+        st.session_state.low_credit_known_score = 0
+
+    st.session_state.job_tenure = st.number_input(
+        "Years at current job",
+        min_value=0.0,
+        step=0.5,
+        value=float(st.session_state.job_tenure)
+    )
+
+    st.markdown("### Review")
+    st.write(f"**Name:** {st.session_state.buyer_name}")
+    st.write(f"**Phone:** {st.session_state.buyer_phone}")
+    st.write(f"**Email:** {st.session_state.buyer_email}")
+    st.write(f"**Timeline:** {st.session_state.timeline}")
+    st.write(f"**Pre-approved:** {st.session_state.preapproved}")
+    st.write(f"**Representation agreement signed:** {st.session_state.rep_agreement_signed}")
+    st.write(f"**Willing to sign representation agreement:** {st.session_state.rep_agreement_willing}")
+    st.write(f"**Estimated income:** ${st.session_state.income:,.0f}")
+    st.write(f"**Down payment:** ${st.session_state.down_payment:,.0f}")
+    st.write(f"**Comfortable monthly payment:** ${st.session_state.target_payment:,.0f}")
+    st.write(f"**Receives child support:** {st.session_state.receives_child_support}")
+    st.write(f"**Pays child support:** {st.session_state.pays_child_support}")
+    st.write(f"**Credit score range:** {st.session_state.credit_bucket}")
+    if st.session_state.credit_bucket == "Low" and st.session_state.low_credit_known_score:
+        st.write(f"**Approximate credit score:** {st.session_state.low_credit_known_score}")
+
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("Back ", use_container_width=True):
+            st.session_state.step = 2
+            st.rerun()
+
+    with col2:
+        if st.button("Submit Information", use_container_width=True):
+            missing = []
+            if not st.session_state.loan_type:
+                missing.append("Loan type")
+            if not st.session_state.credit_bucket:
+                missing.append("Credit score range")
+
+            if missing:
+                st.error("Please complete: " + ", ".join(missing))
+            else:
+                results = compute_affordability(
+                    annual_income=st.session_state.income,
+                    annual_debt_payments=st.session_state.debt,
+                    down_payment=st.session_state.down_payment,
+                    loan_type=st.session_state.loan_type
+                )
+
+                score, tier, probability = compute_lead_score(
+                    credit_bucket=st.session_state.credit_bucket,
+                    employment_type="W2",
+                    job_tenure_years=st.session_state.job_tenure,
+                    timeline=st.session_state.timeline,
+                    preapproved=st.session_state.preapproved,
+                    motivation="Strong",
+                    area_fit="",
+                    lifestyle_fit="",
+                    property_constraint="",
+                    loan_type=st.session_state.loan_type,
+                    rep_agreement_signed=st.session_state.rep_agreement_signed,
+                    rep_agreement_willing=st.session_state.rep_agreement_willing,
+                    low_credit_known_score=st.session_state.low_credit_known_score
+                )
+
+                monthly_income = st.session_state.income / 12
+                monthly_debt = st.session_state.debt / 12
+
+                flags = compute_flags(
+                    estimated_max_payment=results["max_payment"],
+                    buyer_target_payment=st.session_state.target_payment,
+                    monthly_income=monthly_income,
+                    monthly_debt=monthly_debt,
+                    preapproved=st.session_state.preapproved,
+                    receives_child_support=st.session_state.receives_child_support,
+                    pays_child_support=st.session_state.pays_child_support,
+                    rep_agreement_signed=st.session_state.rep_agreement_signed,
+                    rep_agreement_willing=st.session_state.rep_agreement_willing,
+                    low_credit_known_score=st.session_state.low_credit_known_score
+                )
+
+                pdf_bytes = generate_report_bytes(
+                    st.session_state.buyer_name,
+                    st.session_state.buyer_phone,
+                    st.session_state.buyer_email,
+                    score,
+                    tier,
+                    probability,
+                    results["max_home_price"],
+                    results["comfort_price"],
+                    results["stretch_price"],
+                    flags
+                )
+
+                file_name = f"{uuid.uuid4().hex}.pdf"
+                report_path, report_url = upload_pdf_and_get_signed_url(pdf_bytes, file_name)
+
+                insert_lead(
+                    agent,
+                    st.session_state.buyer_name,
+                    st.session_state.buyer_phone,
+                    score,
+                    tier,
+                    probability,
+                    results["max_home_price"],
+                    report_url
+                )
+
+                if agent_email:
+                    try:
+                        response = send_agent_email(
+                            agent_email,
+                            st.session_state.buyer_name,
+                            st.session_state.buyer_phone,
+                            st.session_state.buyer_email,
+                            score,
+                            tier,
+                            probability,
+                            results["max_home_price"],
+                            report_url
+                        )
+                        
+                    except Exception as e:
+                        st.error(f"Email failed: {e}")
+                else:
+                    st.error("No agent email resolved from URL parameter.")
+
+                st.success("Thank you. Your information has been submitted successfully.")
+                st.write("An agent will review your information and follow up shortly.")
