@@ -31,7 +31,7 @@ def send_agent_email(agent_emails, buyer_name, buyer_phone, buyer_email, score, 
 
     params = {
         "from": os.environ["RESEND_FROM_EMAIL"],
-        "to": [agent_email],
+        "to": agent_emails,
         "subject": subject,
         "html": html,
         "attachments": [
