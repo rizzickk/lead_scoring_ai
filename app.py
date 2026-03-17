@@ -10,13 +10,24 @@ st.set_page_config(page_title="Home Readiness Form", layout="centered")
 
 create_table()
 
-AGENT_EMAILS = {
-    "richie": "ricardo@rsautomationep.com"
+AGENTS = {
+    "8f4c2d91b7e3a4f1": {
+        "name": "Richie",
+        "email": "ricardo@rsautomationep.com",
+        "active": True
+    }
 }
 
 agent_param = st.query_params.get("agent", "unknown")
 agent = agent_param[0] if isinstance(agent_param, list) else agent_param
-agent_email = AGENT_EMAILS.get(agent, None)
+
+agent_record = AGENTS.get(agent)
+
+if not agent_record or not agent_record["active"]:
+    st.error("This intake link is inactive.")
+    st.stop()
+
+agent_email = agent_record["email"]
 
 st.title("Home Readiness Form")
 st.write("Complete the short form below so your agent can review your information and follow up with next steps.")
