@@ -5,7 +5,7 @@ import resend
 resend.api_key = os.environ["RESEND_API_KEY"]
 
 
-def send_agent_email(agent_email, buyer_name, buyer_phone, buyer_email, score, tier, probability, max_price, report_url):
+def send_agent_email(agent_emails, buyer_name, buyer_phone, buyer_email, score, tier, probability, max_price, report_url):
     subject = f"New Lead Scoring AI Submission — {buyer_name}"
 
     html = f"""

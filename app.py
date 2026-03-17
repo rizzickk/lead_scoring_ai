@@ -12,13 +12,16 @@ create_table()
 
 AGENTS = {
     "8f4c2d91b7e3a4f1": {
-        "name": "Richie",
-        "email": "ricardo@rsautomationep.com",
+        "name": "Ricardo",
+        "emails": [
+            "ricardo@rsautomationep.com",
+            #"ricardo_villalobos_@outlook.com"
+        ],
         "active": True
     }
 }
 
-agent_param = st.query_params.get("agent", "unknown")
+agent_param = st.query_params.get("a", "unknown")
 agent = agent_param[0] if isinstance(agent_param, list) else agent_param
 
 agent_record = AGENTS.get(agent)
@@ -27,7 +30,7 @@ if not agent_record or not agent_record["active"]:
     st.error("This intake link is inactive.")
     st.stop()
 
-agent_email = agent_record["email"]
+agent_emails = agent_record["emails"]
 
 st.title("Home Readiness Form")
 st.write("Complete the short form below so your agent can review your information and follow up with next steps.")
@@ -156,7 +159,7 @@ elif st.session_state.step == 2:
     )
 
     st.session_state.debt = st.number_input(
-        "Total annual debt payments",
+        "Total monthly debt payments",
         min_value=0.0,
         step=1000.0,
         value=float(st.session_state.debt)
@@ -291,7 +294,7 @@ elif st.session_state.step == 3:
             else:
                 results = compute_affordability(
                     annual_income=st.session_state.income,
-                    annual_debt_payments=st.session_state.debt,
+                    annual_debt_payments=st.session_state.debt * 12,
                     down_payment=st.session_state.down_payment,
                     loan_type=st.session_state.loan_type
                 )
@@ -313,7 +316,7 @@ elif st.session_state.step == 3:
                 )
 
                 monthly_income = st.session_state.income / 12
-                monthly_debt = st.session_state.debt / 12
+                monthly_debt = st.session_state.debt
 
                 flags = compute_flags(
                     estimated_max_payment=results["max_payment"],
@@ -355,10 +358,10 @@ elif st.session_state.step == 3:
                     report_url
                 )
 
-                if agent_email:
+                if agent_emails:
                     try:
-                        response = send_agent_email(
-                            agent_email,
+                        send_agent_email(
+                            agent_emails,
                             st.session_state.buyer_name,
                             st.session_state.buyer_phone,
                             st.session_state.buyer_email,
