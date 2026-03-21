@@ -303,14 +303,9 @@ elif st.session_state.step == 3:
 
                 score, tier, probability = compute_lead_score(
                     credit_bucket=st.session_state.credit_bucket,
-                    employment_type="W2",
                     job_tenure_years=st.session_state.job_tenure,
                     timeline=st.session_state.timeline,
                     preapproved=st.session_state.preapproved,
-                    motivation="Strong",
-                    area_fit="",
-                    lifestyle_fit="",
-                    property_constraint="",
                     loan_type=st.session_state.loan_type,
                     rep_agreement_signed=st.session_state.rep_agreement_signed,
                     rep_agreement_willing=st.session_state.rep_agreement_willing,

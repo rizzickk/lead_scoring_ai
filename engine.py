@@ -130,14 +130,9 @@ def compute_affordability(
 
 def compute_lead_score(
     credit_bucket: str,
-    employment_type: str,
     job_tenure_years: float,
     timeline: str,
     preapproved: str,
-    motivation: str,
-    area_fit: str,
-    lifestyle_fit: str,
-    property_constraint: str,
     loan_type: str,
     rep_agreement_signed: str | None = None,
     rep_agreement_willing: str | None = None,
@@ -171,15 +166,7 @@ def compute_lead_score(
     else:
         tenure_points = 2
 
-    employment_points_map = {
-        "W2": 10,
-        "Self Employed": 6,
-        "1099": 5,
-        "": 6
-    }
-    employment_points = employment_points_map.get(employment_type, 6)
-
-    stability = min(20, tenure_points + employment_points)
+    stability = min(10, tenure_points)
 
     timeline_points_map = {
         "0-3 months": 12,
@@ -213,13 +200,13 @@ def compute_lead_score(
     score = financial_strength + stability + intent + fit
     score = max(0, min(100, int(round(score))))
 
-    if score >= 80:
+    if score >= 70:
         tier = "A"
         close_probability = 0.75
-    elif score >= 65:
+    elif score >= 57:
         tier = "B"
         close_probability = 0.55
-    elif score >= 50:
+    elif score >= 42:
         tier = "C"
         close_probability = 0.30
     else:
