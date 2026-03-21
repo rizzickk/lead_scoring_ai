@@ -225,7 +225,7 @@ elif st.session_state.step == 2:
 elif st.session_state.step == 3:
     st.subheader("3. Purchase Goals")
 
-    loan_options = ["", "Conventional", "FHA", "VA"]
+    loan_options = ["", "Conventional", "FHA", "VA", "Unsure"]
     st.session_state.loan_type = st.selectbox(
         "Loan type",
         loan_options,

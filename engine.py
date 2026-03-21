@@ -166,7 +166,7 @@ def compute_priority_score(
     disposition: str,
 ) -> int:
     credit_points = {"High": 25, "Medium": 17, "Low": 8, "": 0}.get(credit_bucket, 0)
-    loan_points = {"Conventional": 18, "VA": 18, "FHA": 13, "": 0}.get(loan_type, 0)
+    loan_points = {"Conventional": 18, "VA": 18, "FHA": 13, "Unsure": 10, "": 0}.get(loan_type, 0)
     timeline_points = {
         "0-3 months": 20, "3-6 months": 15, "6-12 months": 8, "12+ months": 3, "": 0
     }.get(timeline, 0)
@@ -270,7 +270,7 @@ def compute_flags(
         notes.append("Receives child support")
 
     if pays_child_support == "Yes":
-        notes.append("Pays child support")
+        flags.append("Pays child support")
 
     if rep_agreement_signed == "Yes":
         flags.append("Signed with another agent")
