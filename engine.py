@@ -179,7 +179,7 @@ def compute_lead_score(
     }
     employment_points = employment_points_map.get(employment_type, 6)
 
-    stability = min(20, max(tenure_points, employment_points))
+    stability = min(20, tenure_points + employment_points)
 
     timeline_points_map = {
         "0-3 months": 12,

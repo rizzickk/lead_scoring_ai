@@ -23,5 +23,5 @@ def upload_pdf_and_get_signed_url(file_bytes: bytes, file_name: str, expires_in:
         expires_in=expires_in
     )
 
-    signed_url = signed["signedURL"]
+    signed_url = signed.get("signedUrl") or signed.get("signedURL")
     return path, signed_url
