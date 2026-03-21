@@ -174,7 +174,7 @@ def generate_report_bytes(
 
     y = draw_section_title(c, y, "Lead Assessment")
 
-    is_no_pursue = disposition == "Do Not Pursue"
+    is_no_pursue = disposition == "Low Priority"
     disposition_color = COLOR_RED if is_no_pursue else (COLOR_GREEN if disposition == "Active Opportunity" else COLOR_GOLD)
 
     c.setFont("Helvetica", 10.5)

@@ -140,9 +140,9 @@ def compute_disposition(
     rep_agreement_willing: str,
 ) -> str:
     if rep_agreement_signed == "Yes":
-        return "Do Not Pursue"
+        return "Low Priority"
     if low_credit_known_score and low_credit_known_score < 550:
-        return "Do Not Pursue"
+        return "Low Priority"
 
     if estimated_max_payment <= 0:
         return "Nurture"
@@ -185,7 +185,7 @@ def compute_priority_score(
 
     score = credit_points + loan_points + timeline_points + preapproved_points + tenure_points + willing_points
 
-    if disposition == "Do Not Pursue":
+    if disposition == "Low Priority":
         score = min(score, 25)
     elif disposition == "Nurture":
         score = min(score, 65)
@@ -212,7 +212,7 @@ def compute_recommended_next_step(
 ) -> str:
     flags_lower = [f.lower() for f in flags]
 
-    if disposition == "Do Not Pursue":
+    if disposition == "Low Priority":
         if "do not pursue due to credit score below 550" in flags_lower:
             return "Do not pursue actively. Recommend credit improvement and lender consultation."
         return "Do not pursue. Confirm representation status and close out."
@@ -243,7 +243,6 @@ def compute_flags(
     monthly_income: float,
     monthly_debt: float,
     preapproved: str,
-    receives_child_support: str | None = None,
     pays_child_support: str | None = None,
     rep_agreement_signed: str | None = None,
     rep_agreement_willing: str | None = None,
@@ -265,9 +264,6 @@ def compute_flags(
 
     if preapproved == "No":
         flags.append("Pre-approval recommended")
-
-    if receives_child_support == "Yes":
-        notes.append("Receives child support")
 
     if pays_child_support == "Yes":
         flags.append("Pays child support")

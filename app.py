@@ -64,7 +64,6 @@ defaults = {
     "income_raw": "",
     "debt_raw": "",
     "down_payment_raw": "",
-    "receives_child_support": "",
     "pays_child_support": "",
     "loan_type": "",
     "credit_bucket": "",
@@ -185,13 +184,6 @@ elif st.session_state.step == 2:
 
     yes_no_options = ["", "Yes", "No"]
 
-    st.session_state.receives_child_support = st.selectbox(
-        "Do you receive child support?",
-        yes_no_options,
-        index=yes_no_options.index(st.session_state.receives_child_support)
-        if st.session_state.receives_child_support in yes_no_options else 0
-    )
-
     st.session_state.pays_child_support = st.selectbox(
         "Do you pay child support?",
         yes_no_options,
@@ -210,8 +202,6 @@ elif st.session_state.step == 2:
             missing = []
             if st.session_state.income <= 0:
                 missing.append("Estimated annual household income")
-            if not st.session_state.receives_child_support:
-                missing.append("Child support received indicator")
             if not st.session_state.pays_child_support:
                 missing.append("Child support paid indicator")
 
@@ -273,7 +263,6 @@ elif st.session_state.step == 3:
     st.write(f"**Estimated income:** ${st.session_state.income:,.0f}")
     st.write(f"**Monthly debt payments:** ${st.session_state.debt:,.0f}")
     st.write(f"**Down payment:** ${st.session_state.down_payment:,.0f}")
-    st.write(f"**Receives child support:** {st.session_state.receives_child_support}")
     st.write(f"**Pays child support:** {st.session_state.pays_child_support}")
     st.write(f"**Years at current job:** {st.session_state.job_tenure:.1f}")
     st.write(f"**Credit score range:** {st.session_state.credit_bucket}")
@@ -334,7 +323,7 @@ elif st.session_state.step == 3:
                     monthly_income=monthly_income,
                     monthly_debt=monthly_debt,
                     preapproved=st.session_state.preapproved,
-                    receives_child_support=st.session_state.receives_child_support,
+
                     pays_child_support=st.session_state.pays_child_support,
                     rep_agreement_signed=st.session_state.rep_agreement_signed,
                     rep_agreement_willing=st.session_state.rep_agreement_willing,
