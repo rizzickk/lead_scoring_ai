@@ -58,11 +58,9 @@ defaults = {
     "income": 0.0,
     "debt": 0.0,
     "down_payment": 0.0,
-    "target_payment": 0.0,
     "income_raw": "",
     "debt_raw": "",
     "down_payment_raw": "",
-    "target_payment_raw": "",
     "receives_child_support": "",
     "pays_child_support": "",
     "loan_type": "",
@@ -182,9 +180,6 @@ elif st.session_state.step == 2:
     st.text_input("Estimated down payment available", placeholder="$0.00", key="down_payment_raw")
     st.session_state.down_payment = _parse_currency(st.session_state.down_payment_raw)
 
-    st.text_input("Comfortable monthly payment", placeholder="$0.00", key="target_payment_raw")
-    st.session_state.target_payment = _parse_currency(st.session_state.target_payment_raw)
-
     yes_no_options = ["", "Yes", "No"]
 
     st.session_state.receives_child_support = st.selectbox(
@@ -212,8 +207,6 @@ elif st.session_state.step == 2:
             missing = []
             if st.session_state.income <= 0:
                 missing.append("Estimated annual household income")
-            if st.session_state.target_payment <= 0:
-                missing.append("Comfortable monthly payment")
             if not st.session_state.receives_child_support:
                 missing.append("Child support received indicator")
             if not st.session_state.pays_child_support:
@@ -262,7 +255,8 @@ elif st.session_state.step == 3:
         "Years at current job",
         min_value=0.0,
         step=0.5,
-        value=float(st.session_state.job_tenure)
+        value=float(st.session_state.job_tenure),
+        format="%.1f"
     )
 
     st.markdown("### Review")
@@ -276,10 +270,9 @@ elif st.session_state.step == 3:
     st.write(f"**Estimated income:** ${st.session_state.income:,.0f}")
     st.write(f"**Monthly debt payments:** ${st.session_state.debt:,.0f}")
     st.write(f"**Down payment:** ${st.session_state.down_payment:,.0f}")
-    st.write(f"**Comfortable monthly payment:** ${st.session_state.target_payment:,.0f}")
     st.write(f"**Receives child support:** {st.session_state.receives_child_support}")
     st.write(f"**Pays child support:** {st.session_state.pays_child_support}")
-    st.write(f"**Years at current job:** {st.session_state.job_tenure}")
+    st.write(f"**Years at current job:** {st.session_state.job_tenure:.1f}")
     st.write(f"**Credit score range:** {st.session_state.credit_bucket}")
     if st.session_state.credit_bucket == "Low" and st.session_state.low_credit_known_score:
         st.write(f"**Approximate credit score:** {st.session_state.low_credit_known_score}")
@@ -329,7 +322,6 @@ elif st.session_state.step == 3:
 
                 flags, notes = compute_flags(
                     estimated_max_payment=results["max_payment"],
-                    buyer_target_payment=st.session_state.target_payment,
                     monthly_income=monthly_income,
                     monthly_debt=monthly_debt,
                     preapproved=st.session_state.preapproved,

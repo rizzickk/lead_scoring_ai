@@ -236,7 +236,6 @@ def compute_lead_score(
 
 def compute_flags(
     estimated_max_payment: float,
-    buyer_target_payment: float,
     monthly_income: float,
     monthly_debt: float,
     preapproved: str,
@@ -254,18 +253,8 @@ def compute_flags(
         flags.append("Income missing or invalid")
         return flags, notes
 
-    total_dti = (monthly_debt + buyer_target_payment) / monthly_income
-
     if estimated_max_payment <= 0:
         flags.append("Not affordable")
-
-    if buyer_target_payment > estimated_max_payment and estimated_max_payment > 0:
-        flags.append("Target payment exceeds max affordability")
-
-    if total_dti >= DEFAULT_TOTAL_DTI_CAP:
-        flags.append("DTI above safe lending threshold")
-    elif 0.40 <= total_dti < DEFAULT_TOTAL_DTI_CAP:
-        flags.append("DTI near cap")
 
     if _safe_div(monthly_debt, monthly_income) > 0.30:
         flags.append("High debt load")
@@ -282,7 +271,7 @@ def compute_flags(
     if rep_agreement_signed == "No":
         flags.append("Representation agreement not signed")
     elif rep_agreement_signed == "Yes":
-        notes.append("Representation agreement signed")
+        flags.append("Representation agreement signed")
 
     if rep_agreement_signed != "Yes":
         if rep_agreement_willing == "No":
