@@ -51,10 +51,10 @@ def draw_header(c, buyer_name, buyer_phone, buyer_email):
 
     c.setFillColor(white)
     c.setFont("Helvetica-Bold", 20)
-    c.drawString(MARGIN_X, PAGE_HEIGHT - 38, "Lead Scoring AI")
+    c.drawString(MARGIN_X, PAGE_HEIGHT - 38, "Home Readiness Report")
 
     c.setFont("Helvetica", 10)
-    c.drawString(MARGIN_X, PAGE_HEIGHT - 55, "Agent Lead Intelligence Report")
+    c.drawString(MARGIN_X, PAGE_HEIGHT - 55, "Buyer Readiness Summary — Agent Use Only")
 
     c.setFillColor(COLOR_GOLD)
     c.rect(MARGIN_X, PAGE_HEIGHT - 72, 140, 3, fill=1, stroke=0)
@@ -144,7 +144,7 @@ def draw_footer(c):
     c.drawString(
         MARGIN_X,
         28,
-        "Internal agent-use report. Not a loan approval or lending decision."
+        "For agent use only. Affordability estimates are illustrative and not a loan approval, credit decision, or guarantee of financing."
     )
 
 
@@ -172,7 +172,7 @@ def generate_report_bytes(
 
     y = PAGE_HEIGHT - 125
 
-    y = draw_section_title(c, y, "Lead Assessment")
+    y = draw_section_title(c, y, "Readiness Assessment")
 
     is_no_pursue = disposition == "Low Priority"
     disposition_color = COLOR_RED if is_no_pursue else (COLOR_GREEN if disposition == "Active Opportunity" else COLOR_GOLD)

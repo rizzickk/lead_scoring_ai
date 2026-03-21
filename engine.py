@@ -213,28 +213,28 @@ def compute_recommended_next_step(
     flags_lower = [f.lower() for f in flags]
 
     if disposition == "Low Priority":
-        if "do not pursue due to credit score below 550" in flags_lower:
-            return "Do not pursue actively. Recommend credit improvement and lender consultation."
-        return "Do not pursue. Confirm representation status and close out."
+        if "credit score below typical lender minimums" in flags_lower:
+            return "Credit may limit near-term financing options. Recommend lender consultation before beginning an active search."
+        return "Buyer has indicated existing representation. Verify status before proceeding."
 
-    if "not affordable" in flags_lower:
-        return "Pause search. Start financial prep and lender review."
+    if "financing range not yet established" in flags_lower:
+        return "Search not recommended at this stage. Connect buyer with a lender to establish a financing baseline first."
 
-    if "high debt load" in flags_lower:
-        return "Lender review before significant agent time investment."
+    if "elevated monthly obligations" in flags_lower:
+        return "Existing obligations may affect financing options. Recommend a lender review before significant time investment."
 
     if "pre-approval recommended" in flags_lower:
-        return "Make lender introduction the first next step."
+        return "Make a lender introduction the first next step before beginning an active search."
 
     if any(f in flags_lower for f in [
         "not willing to sign representation agreement",
         "unsure about representation agreement"
     ]):
-        return "Clarify representation expectations before deep engagement."
+        return "Discuss buyer representation expectations before moving into an active search."
 
     return (
-        f"Contact immediately and begin search near comfort range "
-        f"(${round(comfort_price):,} – ${round(max_price):,})."
+        f"Buyer appears ready to begin an active search. "
+        f"Focus near the comfort range (${round(comfort_price):,} – ${round(max_price):,})."
     )
 
 
@@ -257,10 +257,10 @@ def compute_flags(
         return flags, notes
 
     if estimated_max_payment <= 0:
-        flags.append("Not affordable")
+        flags.append("Financing range not yet established")
 
     if _safe_div(monthly_debt, monthly_income) > 0.30:
-        flags.append("High debt load")
+        flags.append("Elevated monthly obligations — lender review recommended")
 
     if preapproved == "No":
         flags.append("Pre-approval recommended")
@@ -269,7 +269,7 @@ def compute_flags(
         notes.append("Pays child support")
 
     if rep_agreement_signed == "Yes":
-        flags.append("Signed with another agent")
+        flags.append("Buyer has indicated existing representation")
     else:
         if rep_agreement_willing == "No":
             flags.append("Not willing to sign representation agreement")
@@ -279,6 +279,6 @@ def compute_flags(
             notes.append("Willing to sign representation agreement")
 
     if low_credit_known_score and low_credit_known_score < 550:
-        flags.append("Do not pursue due to credit score below 550")
+        flags.append("Credit score below typical lender minimums — financing prep recommended")
 
     return flags, notes

@@ -46,6 +46,7 @@ agent_emails = agent_record["emails"]
 
 st.title("Home Readiness Form")
 st.write("Complete the short form below so your agent can review your information and follow up with next steps.")
+st.caption("Your information is shared only with your agent and used solely to help plan your home search. It is not shared with lenders or third parties.")
 
 if "step" not in st.session_state:
     st.session_state.step = 1
@@ -185,7 +186,7 @@ elif st.session_state.step == 2:
     yes_no_options = ["", "Yes", "No"]
 
     st.session_state.pays_child_support = st.selectbox(
-        "Do you pay child support?",
+        "Do you have any court-ordered monthly payment obligations?",
         yes_no_options,
         index=yes_no_options.index(st.session_state.pays_child_support)
         if st.session_state.pays_child_support in yes_no_options else 0
@@ -203,7 +204,7 @@ elif st.session_state.step == 2:
             if st.session_state.income <= 0:
                 missing.append("Estimated annual household income")
             if not st.session_state.pays_child_support:
-                missing.append("Child support paid indicator")
+                missing.append("Court-ordered obligations")
 
             if missing:
                 st.error("Please complete: " + ", ".join(missing))
@@ -263,7 +264,7 @@ elif st.session_state.step == 3:
     st.write(f"**Estimated income:** ${st.session_state.income:,.0f}")
     st.write(f"**Monthly debt payments:** ${st.session_state.debt:,.0f}")
     st.write(f"**Down payment:** ${st.session_state.down_payment:,.0f}")
-    st.write(f"**Pays child support:** {st.session_state.pays_child_support}")
+    st.write(f"**Court-ordered monthly obligations:** {st.session_state.pays_child_support}")
     st.write(f"**Years at current job:** {st.session_state.job_tenure:.1f}")
     st.write(f"**Credit score range:** {st.session_state.credit_bucket}")
     if st.session_state.credit_bucket == "Low" and st.session_state.low_credit_known_score:
