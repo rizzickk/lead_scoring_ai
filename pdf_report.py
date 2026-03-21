@@ -240,7 +240,8 @@ def generate_report_bytes(
     max_price,
     comfort_price,
     stretch_price,
-    flags
+    flags,
+    notes
 ):
     summary, action = build_summary(
         score, tier, probability, flags, max_price, comfort_price, stretch_price
@@ -276,6 +277,11 @@ def generate_report_bytes(
     has_no_go = any("Do not pursue due to credit score below 550" in f for f in flags)
     bullet_color = COLOR_RED if has_no_go else COLOR_TEXT
     y = draw_bullets(c, y, flags, color=bullet_color)
+
+    if notes:
+        y -= 8
+        y = draw_section_title(c, y, "Notes")
+        y = draw_bullets(c, y, notes, color=COLOR_SUBTLE)
 
     y -= 6
     y = draw_text_block(c, y, "Summary", summary, box_fill=COLOR_LIGHT)

@@ -24,7 +24,7 @@ AGENTS = {
         "name": "Ricardo",
         "emails": [
             "ricardo@rsautomationep.com",
-            "ricardo_villalobos_@outlook.com"
+            # "ricardo_villalobos_@outlook.com"
         ],
         "active": True
     }
@@ -90,17 +90,20 @@ if st.session_state.step == 1:
 
     st.session_state.buyer_name = st.text_input(
         "Full name",
-        value=st.session_state.buyer_name
+        value=st.session_state.buyer_name,
+        placeholder="Jane Smith"
     )
 
     st.session_state.buyer_phone = st.text_input(
         "Phone number",
-        value=st.session_state.buyer_phone
+        value=st.session_state.buyer_phone,
+        placeholder="(555) 867-5309"
     )
 
     st.session_state.buyer_email = st.text_input(
         "Email address",
-        value=st.session_state.buyer_email
+        value=st.session_state.buyer_email,
+        placeholder="email@gmail.com"
     )
 
     timeline_options = ["", "0-3 months", "3-6 months", "6-12 months", "12+ months"]
@@ -324,7 +327,7 @@ elif st.session_state.step == 3:
                 monthly_income = st.session_state.income / 12
                 monthly_debt = st.session_state.debt
 
-                flags = compute_flags(
+                flags, notes = compute_flags(
                     estimated_max_payment=results["max_payment"],
                     buyer_target_payment=st.session_state.target_payment,
                     monthly_income=monthly_income,
@@ -347,7 +350,8 @@ elif st.session_state.step == 3:
                     results["max_home_price"],
                     results["comfort_price"],
                     results["stretch_price"],
-                    flags
+                    flags,
+                    notes
                 )
 
                 file_name = f"{uuid.uuid4().hex}.pdf"

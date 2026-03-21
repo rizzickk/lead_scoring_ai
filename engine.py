@@ -245,13 +245,14 @@ def compute_flags(
     rep_agreement_signed: str | None = None,
     rep_agreement_willing: str | None = None,
     low_credit_known_score: int | None = None,
-) -> list[str]:
+) -> tuple[list[str], list[str]]:
 
     flags: list[str] = []
+    notes: list[str] = []
 
     if monthly_income <= 0:
         flags.append("Income missing or invalid")
-        return flags
+        return flags, notes
 
     total_dti = (monthly_debt + buyer_target_payment) / monthly_income
 
@@ -273,24 +274,25 @@ def compute_flags(
         flags.append("Pre-approval recommended")
 
     if receives_child_support == "Yes":
-        flags.append("Receives child support")
+        notes.append("Receives child support")
 
     if pays_child_support == "Yes":
-        flags.append("Pays child support")
+        notes.append("Pays child support")
 
     if rep_agreement_signed == "No":
         flags.append("Representation agreement not signed")
     elif rep_agreement_signed == "Yes":
-        flags.append("Representation agreement signed")
+        notes.append("Representation agreement signed")
 
-    if rep_agreement_willing == "No":
-        flags.append("Not willing to sign representation agreement")
-    elif rep_agreement_willing == "Unsure":
-        flags.append("Unsure about representation agreement")
-    elif rep_agreement_willing == "Yes":
-        flags.append("Willing to sign representation agreement")
+    if rep_agreement_signed != "Yes":
+        if rep_agreement_willing == "No":
+            flags.append("Not willing to sign representation agreement")
+        elif rep_agreement_willing == "Unsure":
+            flags.append("Unsure about representation agreement")
+        elif rep_agreement_willing == "Yes":
+            notes.append("Willing to sign representation agreement")
 
     if low_credit_known_score and low_credit_known_score < 550:
         flags.append("Do not pursue due to credit score below 550")
 
-    return flags
+    return flags, notes
