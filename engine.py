@@ -266,7 +266,7 @@ def compute_flags(
         flags.append("Pre-approval recommended")
 
     if pays_child_support == "Yes":
-        flags.append("Pays child support")
+        notes.append("Pays child support")
 
     if rep_agreement_signed == "Yes":
         flags.append("Signed with another agent")
