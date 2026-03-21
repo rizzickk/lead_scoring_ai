@@ -27,7 +27,7 @@ AGENTS = {
         "name": "Ricardo",
         "emails": [
             "ricardo@rsautomationep.com",
-            # "ricardo_villalobos_@outlook.com"
+            "ricardo_villalobos_@outlook.com"
         ],
         "active": True
     }
