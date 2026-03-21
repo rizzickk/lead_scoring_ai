@@ -10,6 +10,8 @@ DEFAULT_MONTHLY_TAX = 350.0
 DEFAULT_MONTHLY_INSURANCE = 125.0
 DEFAULT_MONTHLY_HOA = 0.0
 
+CLOSE_PROBABILITY = {"A": 0.75, "B": 0.55, "C": 0.30, "D": 0.10}
+
 
 def _safe_div(numerator: float, denominator: float) -> float:
     if denominator == 0:
@@ -128,97 +130,112 @@ def compute_affordability(
     }
 
 
-def compute_lead_score(
+def compute_disposition(
+    rep_agreement_signed: str,
+    low_credit_known_score: int | None,
+    estimated_max_payment: float,
+    monthly_income: float,
+    monthly_debt: float,
+    preapproved: str,
+    rep_agreement_willing: str,
+) -> str:
+    if rep_agreement_signed == "Yes":
+        return "Do Not Pursue"
+    if low_credit_known_score and low_credit_known_score < 550:
+        return "Do Not Pursue"
+
+    if estimated_max_payment <= 0:
+        return "Nurture"
+    if monthly_income > 0 and _safe_div(monthly_debt, monthly_income) > 0.30:
+        return "Nurture"
+    if preapproved == "No":
+        return "Nurture"
+    if rep_agreement_willing in ("No", "Unsure"):
+        return "Nurture"
+
+    return "Active Opportunity"
+
+
+def compute_priority_score(
     credit_bucket: str,
-    job_tenure_years: float,
+    loan_type: str,
     timeline: str,
     preapproved: str,
-    loan_type: str,
-    rep_agreement_signed: str | None = None,
-    rep_agreement_willing: str | None = None,
-    low_credit_known_score: int | None = None,
-) -> tuple[int, str, float]:
-
-    credit_points_map = {
-        "High": 12,
-        "Medium": 8,
-        "Low": 4,
-        "": 0
-    }
-    credit_points = credit_points_map.get(credit_bucket, 0)
-
-    loan_type_points_map = {
-        "Conventional": 10,
-        "FHA": 7,
-        "VA": 10,
-        "": 0
-    }
-    loan_type_points = loan_type_points_map.get(loan_type, 0)
-
-    financial_strength = min(30, credit_points + loan_type_points)
+    job_tenure_years: float,
+    rep_agreement_willing: str,
+    disposition: str,
+) -> int:
+    credit_points = {"High": 25, "Medium": 17, "Low": 8, "": 0}.get(credit_bucket, 0)
+    loan_points = {"Conventional": 18, "VA": 18, "FHA": 13, "": 0}.get(loan_type, 0)
+    timeline_points = {
+        "0-3 months": 20, "3-6 months": 15, "6-12 months": 8, "12+ months": 3, "": 0
+    }.get(timeline, 0)
+    preapproved_points = 17 if preapproved == "Yes" else 0
 
     if job_tenure_years >= 5:
-        tenure_points = 10
+        tenure_points = 12
     elif job_tenure_years >= 3:
-        tenure_points = 8
+        tenure_points = 9
     elif job_tenure_years >= 1:
-        tenure_points = 5
+        tenure_points = 6
     else:
-        tenure_points = 2
+        tenure_points = 3
 
-    stability = min(10, tenure_points)
+    willing_points = {"Yes": 8, "Unsure": 3, "No": 0}.get(rep_agreement_willing, 0)
 
-    timeline_points_map = {
-        "0-3 months": 12,
-        "3-6 months": 9,
-        "6-12 months": 5,
-        "12+ months": 2,
-        "": 0
-    }
-    timeline_points = timeline_points_map.get(timeline, 0)
+    score = credit_points + loan_points + timeline_points + preapproved_points + tenure_points + willing_points
 
-    preapproved_points = 10 if preapproved == "Yes" else 0
+    if disposition == "Do Not Pursue":
+        score = min(score, 25)
+    elif disposition == "Nurture":
+        score = min(score, 65)
 
-    rep_signed_points = 0
-    if rep_agreement_signed == "Yes":
-        rep_signed_points = 8
-    elif rep_agreement_signed == "No":
-        rep_signed_points = 0
+    return max(0, min(100, score))
 
-    rep_willing_points = 0
-    if rep_agreement_willing == "Yes":
-        rep_willing_points = 6
-    elif rep_agreement_willing == "Unsure":
-        rep_willing_points = 3
-    elif rep_agreement_willing == "No":
-        rep_willing_points = 0
 
-    intent = min(30, timeline_points + preapproved_points + max(rep_signed_points, rep_willing_points))
-
-    fit = 20
-
-    score = financial_strength + stability + intent + fit
-    score = max(0, min(100, int(round(score))))
-
-    if score >= 70:
-        tier = "A"
-        close_probability = 0.75
-    elif score >= 57:
-        tier = "B"
-        close_probability = 0.55
-    elif score >= 42:
-        tier = "C"
-        close_probability = 0.30
+def compute_tier(score: int) -> str:
+    if score >= 80:
+        return "A"
+    elif score >= 60:
+        return "B"
+    elif score >= 40:
+        return "C"
     else:
-        tier = "D"
-        close_probability = 0.10
+        return "D"
 
-    if credit_bucket == "Low" and low_credit_known_score and low_credit_known_score < 550:
-        score = 40
-        tier = "C"
-        close_probability = 0.05
 
-    return score, tier, close_probability
+def compute_recommended_next_step(
+    disposition: str,
+    flags: list[str],
+    comfort_price: float,
+    max_price: float,
+) -> str:
+    flags_lower = [f.lower() for f in flags]
+
+    if disposition == "Do Not Pursue":
+        if "do not pursue due to credit score below 550" in flags_lower:
+            return "Do not pursue actively. Recommend credit improvement and lender consultation."
+        return "Do not pursue. Confirm representation status and close out."
+
+    if "not affordable" in flags_lower:
+        return "Pause search. Start financial prep and lender review."
+
+    if "high debt load" in flags_lower:
+        return "Lender review before significant agent time investment."
+
+    if "pre-approval recommended" in flags_lower:
+        return "Make lender introduction the first next step."
+
+    if any(f in flags_lower for f in [
+        "not willing to sign representation agreement",
+        "unsure about representation agreement"
+    ]):
+        return "Clarify representation expectations before deep engagement."
+
+    return (
+        f"Contact immediately and begin search near comfort range "
+        f"(${round(comfort_price):,} – ${round(max_price):,})."
+    )
 
 
 def compute_flags(
@@ -255,12 +272,9 @@ def compute_flags(
     if pays_child_support == "Yes":
         notes.append("Pays child support")
 
-    if rep_agreement_signed == "No":
-        flags.append("Representation agreement not signed")
-    elif rep_agreement_signed == "Yes":
-        flags.append("Representation agreement signed")
-
-    if rep_agreement_signed != "Yes":
+    if rep_agreement_signed == "Yes":
+        flags.append("Signed with another agent")
+    else:
         if rep_agreement_willing == "No":
             flags.append("Not willing to sign representation agreement")
         elif rep_agreement_willing == "Unsure":

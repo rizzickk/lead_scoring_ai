@@ -19,6 +19,7 @@ COLOR_MID = HexColor("#D9DEE3")
 COLOR_TEXT = HexColor("#1F2933")
 COLOR_SUBTLE = HexColor("#52606D")
 COLOR_RED = HexColor("#B42318")
+COLOR_GREEN = HexColor("#1B7A3E")
 
 
 # -----------------------------
@@ -42,86 +43,6 @@ def split_text(text, max_chars=92):
         lines.append(current)
 
     return lines
-
-
-def build_summary(score, tier, probability, flags, max_price, comfort_price, stretch_price):
-    flags_lower = [f.lower() for f in flags]
-
-    if "not affordable" in flags_lower:
-        summary = (
-            "This lead is not currently financeable within a practical housing range. "
-            "Estimated affordability is too constrained to justify active home-search time at this stage."
-        )
-        action = (
-            "Do not prioritize for active touring. Recommend financial preparation and lender review first."
-        )
-        return summary, action
-
-    if "do not pursue due to credit score below 550" in flags_lower:
-        summary = (
-            "This lead is currently outside a workable credit threshold for near-term pursuit. "
-            "Even if interest exists, financing execution risk is too high in its current state."
-        )
-        action = (
-            "Do not pursue actively. Recommend credit improvement and lender consultation before re-engagement."
-        )
-        return summary, action
-
-    if tier == "A" and len(flags) == 0:
-        summary = (
-            "This appears to be a strong lead with solid readiness and minimal visible friction. "
-            "The buyer profile supports active follow-up and the estimated purchase range appears workable."
-        )
-        action = (
-            f"High priority. Contact immediately and focus search between approximately "
-            f"${round(comfort_price):,} and ${round(max_price):,}."
-        )
-        return summary, action
-
-    if "dti above safe lending threshold" in flags_lower:
-        summary = (
-            "This lead shows meaningful affordability pressure. Debt burden appears high relative to income, "
-            "which may reduce financing flexibility and increase fallout risk."
-        )
-        action = "Medium priority. Recommend lender review before heavy time investment."
-        return summary, action
-
-    if "dti near cap" in flags_lower:
-        summary = (
-            "This lead appears workable, but debt-to-income is approaching common lending thresholds. "
-            "Payment expectations should be managed carefully and search discipline should remain tight."
-        )
-        action = (
-            f"Proceed carefully. Keep search discipline near the comfort range around ${round(comfort_price):,}."
-        )
-        return summary, action
-
-    if "pre-approval recommended" in flags_lower:
-        summary = (
-            "This buyer appears viable, but financing readiness has not yet been validated through pre-approval. "
-            "That limits confidence in speed and execution."
-        )
-        action = "Make lender connection the first next step before committing meaningful search time."
-        return summary, action
-
-    if "representation agreement not signed" in flags_lower:
-        summary = (
-            "This lead may be workable, but commitment risk remains because representation has not been secured. "
-            "That increases the chance of time leakage before conversion."
-        )
-        action = "Clarify representation expectations early before deep engagement."
-        return summary, action
-
-    summary = (
-        "This lead appears moderately qualified based on the submitted information. "
-        "The estimated affordability range is workable, though follow-up is needed to confirm financing readiness "
-        "and strengthen execution confidence."
-    )
-    action = (
-        f"Medium priority. Use the estimated range of ${round(comfort_price):,} to ${round(max_price):,} "
-        f"as the primary planning range."
-    )
-    return summary, action
 
 
 def draw_header(c, buyer_name, buyer_phone, buyer_email):
@@ -234,19 +155,16 @@ def generate_report_bytes(
     buyer_name,
     buyer_phone,
     buyer_email,
-    score,
+    disposition,
+    priority_score,
     tier,
-    probability,
     max_price,
     comfort_price,
     stretch_price,
     flags,
-    notes
+    notes,
+    recommended_next_step,
 ):
-    summary, action = build_summary(
-        score, tier, probability, flags, max_price, comfort_price, stretch_price
-    )
-
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
 
@@ -254,13 +172,24 @@ def generate_report_bytes(
 
     y = PAGE_HEIGHT - 125
 
-    y = draw_section_title(c, y, "Lead Quality")
-    lead_rows = [
-        ("Lead Score", f"{score}"),
+    y = draw_section_title(c, y, "Lead Assessment")
+
+    is_no_pursue = disposition == "Do Not Pursue"
+    disposition_color = COLOR_RED if is_no_pursue else (COLOR_GREEN if disposition == "Active Opportunity" else COLOR_GOLD)
+
+    c.setFont("Helvetica", 10.5)
+    c.setFillColor(COLOR_SUBTLE)
+    c.drawString(MARGIN_X, y, "Disposition")
+    c.setFont("Helvetica-Bold", 10.5)
+    c.setFillColor(disposition_color)
+    c.drawString(240, y, disposition)
+    y -= 18
+
+    assessment_rows = [
+        ("Priority Score", f"{priority_score}"),
         ("Tier", f"{tier}"),
-        ("Close Probability", f"{round(probability * 100)}%"),
     ]
-    y = draw_kv_rows(c, y, lead_rows)
+    y = draw_kv_rows(c, y, assessment_rows)
 
     y -= 8
     y = draw_section_title(c, y, "Affordability Snapshot")
@@ -273,9 +202,7 @@ def generate_report_bytes(
 
     y -= 8
     y = draw_section_title(c, y, "Flags")
-
-    has_no_go = any("Do not pursue due to credit score below 550" in f for f in flags)
-    bullet_color = COLOR_RED if has_no_go else COLOR_TEXT
+    bullet_color = COLOR_RED if is_no_pursue else COLOR_TEXT
     y = draw_bullets(c, y, flags, color=bullet_color)
 
     if notes:
@@ -284,10 +211,8 @@ def generate_report_bytes(
         y = draw_bullets(c, y, notes, color=COLOR_SUBTLE)
 
     y -= 6
-    y = draw_text_block(c, y, "Summary", summary, box_fill=COLOR_LIGHT)
-
-    action_fill = HexColor("#EEF7F1") if not has_no_go else HexColor("#FDECEC")
-    y = draw_text_block(c, y, "Recommended Action", action, box_fill=action_fill)
+    action_fill = HexColor("#FDECEC") if is_no_pursue else (HexColor("#EEF7F1") if disposition == "Active Opportunity" else COLOR_LIGHT)
+    y = draw_text_block(c, y, "Recommended Next Step", recommended_next_step, box_fill=action_fill)
 
     draw_footer(c)
 

@@ -1,6 +1,9 @@
 import uuid
 import streamlit as st
-from engine import compute_affordability, compute_lead_score, compute_flags
+from engine import (
+    compute_affordability, compute_disposition, compute_priority_score,
+    compute_tier, compute_flags, compute_recommended_next_step, CLOSE_PROBABILITY
+)
 from pdf_report import generate_report_bytes
 from database import create_table, insert_lead
 from storage import upload_pdf_and_get_signed_url
@@ -301,19 +304,30 @@ elif st.session_state.step == 3:
                     loan_type=st.session_state.loan_type
                 )
 
-                score, tier, probability = compute_lead_score(
-                    credit_bucket=st.session_state.credit_bucket,
-                    job_tenure_years=st.session_state.job_tenure,
-                    timeline=st.session_state.timeline,
-                    preapproved=st.session_state.preapproved,
-                    loan_type=st.session_state.loan_type,
-                    rep_agreement_signed=st.session_state.rep_agreement_signed,
-                    rep_agreement_willing=st.session_state.rep_agreement_willing,
-                    low_credit_known_score=st.session_state.low_credit_known_score
-                )
-
                 monthly_income = st.session_state.income / 12
                 monthly_debt = st.session_state.debt
+
+                disposition = compute_disposition(
+                    rep_agreement_signed=st.session_state.rep_agreement_signed,
+                    low_credit_known_score=st.session_state.low_credit_known_score,
+                    estimated_max_payment=results["max_payment"],
+                    monthly_income=monthly_income,
+                    monthly_debt=monthly_debt,
+                    preapproved=st.session_state.preapproved,
+                    rep_agreement_willing=st.session_state.rep_agreement_willing,
+                )
+
+                priority_score = compute_priority_score(
+                    credit_bucket=st.session_state.credit_bucket,
+                    loan_type=st.session_state.loan_type,
+                    timeline=st.session_state.timeline,
+                    preapproved=st.session_state.preapproved,
+                    job_tenure_years=st.session_state.job_tenure,
+                    rep_agreement_willing=st.session_state.rep_agreement_willing,
+                    disposition=disposition,
+                )
+
+                tier = compute_tier(priority_score)
 
                 flags, notes = compute_flags(
                     estimated_max_payment=results["max_payment"],
@@ -324,21 +338,31 @@ elif st.session_state.step == 3:
                     pays_child_support=st.session_state.pays_child_support,
                     rep_agreement_signed=st.session_state.rep_agreement_signed,
                     rep_agreement_willing=st.session_state.rep_agreement_willing,
-                    low_credit_known_score=st.session_state.low_credit_known_score
+                    low_credit_known_score=st.session_state.low_credit_known_score,
                 )
+
+                recommended_next_step = compute_recommended_next_step(
+                    disposition=disposition,
+                    flags=flags,
+                    comfort_price=results["comfort_price"],
+                    max_price=results["max_home_price"],
+                )
+
+                probability = CLOSE_PROBABILITY[tier]
 
                 pdf_bytes = generate_report_bytes(
                     st.session_state.buyer_name,
                     st.session_state.buyer_phone,
                     st.session_state.buyer_email,
-                    score,
+                    disposition,
+                    priority_score,
                     tier,
-                    probability,
                     results["max_home_price"],
                     results["comfort_price"],
                     results["stretch_price"],
                     flags,
-                    notes
+                    notes,
+                    recommended_next_step,
                 )
 
                 file_name = f"{uuid.uuid4().hex}.pdf"
@@ -348,7 +372,7 @@ elif st.session_state.step == 3:
                     agent,
                     st.session_state.buyer_name,
                     st.session_state.buyer_phone,
-                    score,
+                    priority_score,
                     tier,
                     probability,
                     results["max_home_price"],
@@ -362,9 +386,10 @@ elif st.session_state.step == 3:
                             st.session_state.buyer_name,
                             st.session_state.buyer_phone,
                             st.session_state.buyer_email,
-                            score,
+                            disposition,
+                            priority_score,
                             tier,
-                            probability,
+                            recommended_next_step,
                             results["max_home_price"],
                             report_url
                         )
