@@ -37,11 +37,11 @@ if "cleanup_done" not in st.session_state:
     st.session_state.cleanup_done = True
 
 AGENTS = {
-    "8f4c2d91b7e3a4f1": {
+    "Ricardo": {
         "name": "Ricardo",
         "emails": [
             "ricardo@rsautomationep.com",
-            "ricardo_villalobos_@outlook.com"
+            #"ricardo_villalobos_@outlook.com"
         ],
         "active": True
     }
