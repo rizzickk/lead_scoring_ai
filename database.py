@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, timedelta
 
 DB_NAME = "leads.db"
 
@@ -26,7 +27,7 @@ def create_table():
     conn.close()
 
 
-def insert_lead(agent, buyer_name, buyer_phone, score, tier, probability, max_price, report_url):
+def insert_lead(agent, buyer_name, buyer_phone, score, tier, probability, max_price, report_path):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -41,8 +42,34 @@ def insert_lead(agent, buyer_name, buyer_phone, score, tier, probability, max_pr
         tier,
         probability,
         max_price,
-        report_url
+        report_path
     ))
+
+    conn.commit()
+    conn.close()
+
+
+def get_stale_report_paths(days: int = 90) -> list[tuple[int, str]]:
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT id, report_file FROM leads WHERE timestamp < ?",
+        (cutoff,)
+    )
+    rows = cursor.fetchall()
+
+    conn.close()
+    return rows
+
+
+def delete_stale_leads(days: int = 90) -> None:
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM leads WHERE timestamp < ?", (cutoff,))
 
     conn.commit()
     conn.close()

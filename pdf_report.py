@@ -144,7 +144,7 @@ def draw_footer(c):
     c.drawString(
         MARGIN_X,
         28,
-        "For agent use only. Affordability estimates are illustrative and not a loan approval, credit decision, or guarantee of financing."
+        "For agent use only. Based on self-reported information for planning purposes only. Not a loan approval, credit decision, or guarantee of financing."
     )
 
 

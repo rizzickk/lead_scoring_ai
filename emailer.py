@@ -36,12 +36,6 @@ def send_agent_email(agent_emails, buyer_name, buyer_phone, buyer_email, disposi
         "to": agent_emails,
         "subject": subject,
         "html": html,
-        "attachments": [
-            {
-                "filename": f"{buyer_name.replace(' ', '_')}_report.pdf",
-                "path": report_url
-            }
-        ]
     }
 
     return resend.Emails.send(params)

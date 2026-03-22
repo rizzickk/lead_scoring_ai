@@ -5,8 +5,8 @@ from engine import (
     compute_tier, compute_flags, compute_recommended_next_step, CLOSE_PROBABILITY
 )
 from pdf_report import generate_report_bytes
-from database import create_table, insert_lead
-from storage import upload_pdf_and_get_signed_url
+from database import create_table, insert_lead, get_stale_report_paths, delete_stale_leads
+from storage import upload_pdf_and_get_signed_url, delete_report
 from emailer import send_agent_email
 
 st.set_page_config(page_title="Home Readiness Form", layout="centered")
@@ -21,6 +21,20 @@ button[data-testid="stNumberInputStepDown"] {
 """, unsafe_allow_html=True)
 
 create_table()
+
+if "cleanup_done" not in st.session_state:
+    try:
+        stale = get_stale_report_paths(days=90)
+        for _, path in stale:
+            try:
+                if path:
+                    delete_report(path)
+            except Exception:
+                pass
+        delete_stale_leads(days=90)
+    except Exception:
+        pass
+    st.session_state.cleanup_done = True
 
 AGENTS = {
     "8f4c2d91b7e3a4f1": {
@@ -46,7 +60,7 @@ agent_emails = agent_record["emails"]
 
 st.title("Home Readiness Form")
 st.write("Complete the short form below so your agent can review your information and follow up with next steps.")
-st.caption("Your information is shared only with your agent and used solely to help plan your home search. It is not shared with lenders or third parties.")
+st.caption("Your information will be used to prepare an internal home-readiness summary for your designated real estate agent. It may be processed by service providers used for secure storage and email delivery. It is not a credit application, loan approval, or credit decision.")
 
 if "step" not in st.session_state:
     st.session_state.step = 1
@@ -65,7 +79,7 @@ defaults = {
     "income_raw": "",
     "debt_raw": "",
     "down_payment_raw": "",
-    "pays_child_support": "",
+    "consent_to_share": False,
     "loan_type": "",
     "credit_bucket": "",
     "low_credit_known_score": 0,
@@ -183,15 +197,6 @@ elif st.session_state.step == 2:
     st.text_input("Estimated down payment available", placeholder="$0.00", key="down_payment_raw")
     st.session_state.down_payment = _parse_currency(st.session_state.down_payment_raw)
 
-    yes_no_options = ["", "Yes", "No"]
-
-    st.session_state.pays_child_support = st.selectbox(
-        "Do you have any court-ordered monthly payment obligations?",
-        yes_no_options,
-        index=yes_no_options.index(st.session_state.pays_child_support)
-        if st.session_state.pays_child_support in yes_no_options else 0
-    )
-
     col1, col2 = st.columns([1, 1])
     with col1:
         if st.button("Back", use_container_width=True):
@@ -203,8 +208,6 @@ elif st.session_state.step == 2:
             missing = []
             if st.session_state.income <= 0:
                 missing.append("Estimated annual household income")
-            if not st.session_state.pays_child_support:
-                missing.append("Court-ordered obligations")
 
             if missing:
                 st.error("Please complete: " + ", ".join(missing))
@@ -264,11 +267,15 @@ elif st.session_state.step == 3:
     st.write(f"**Estimated income:** ${st.session_state.income:,.0f}")
     st.write(f"**Monthly debt payments:** ${st.session_state.debt:,.0f}")
     st.write(f"**Down payment:** ${st.session_state.down_payment:,.0f}")
-    st.write(f"**Court-ordered monthly obligations:** {st.session_state.pays_child_support}")
     st.write(f"**Years at current job:** {st.session_state.job_tenure:.1f}")
     st.write(f"**Credit score range:** {st.session_state.credit_bucket}")
     if st.session_state.credit_bucket == "Low" and st.session_state.low_credit_known_score:
         st.write(f"**Approximate credit score:** {st.session_state.low_credit_known_score}")
+
+    st.session_state.consent_to_share = st.checkbox(
+        "I understand this information will be shared with my designated real estate agent and processed by service providers used to store and deliver my readiness summary.",
+        value=st.session_state.consent_to_share
+    )
 
     col1, col2 = st.columns([1, 1])
     with col1:
@@ -283,9 +290,15 @@ elif st.session_state.step == 3:
                 missing.append("Loan type")
             if not st.session_state.credit_bucket:
                 missing.append("Credit score range")
+            if not st.session_state.consent_to_share:
+                missing.append("consent checkbox")
 
             if missing:
-                st.error("Please complete: " + ", ".join(missing))
+                non_consent = [m for m in missing if m != "consent checkbox"]
+                if non_consent:
+                    st.error("Please complete: " + ", ".join(non_consent))
+                if "consent checkbox" in missing:
+                    st.error("Please check the consent box to continue.")
             else:
                 results = compute_affordability(
                     annual_income=st.session_state.income,
@@ -324,8 +337,6 @@ elif st.session_state.step == 3:
                     monthly_income=monthly_income,
                     monthly_debt=monthly_debt,
                     preapproved=st.session_state.preapproved,
-
-                    pays_child_support=st.session_state.pays_child_support,
                     rep_agreement_signed=st.session_state.rep_agreement_signed,
                     rep_agreement_willing=st.session_state.rep_agreement_willing,
                     low_credit_known_score=st.session_state.low_credit_known_score,
@@ -366,7 +377,7 @@ elif st.session_state.step == 3:
                     tier,
                     probability,
                     results["max_home_price"],
-                    report_url
+                    report_path
                 )
 
                 if agent_emails:

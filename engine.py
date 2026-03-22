@@ -243,7 +243,6 @@ def compute_flags(
     monthly_income: float,
     monthly_debt: float,
     preapproved: str,
-    pays_child_support: str | None = None,
     rep_agreement_signed: str | None = None,
     rep_agreement_willing: str | None = None,
     low_credit_known_score: int | None = None,
@@ -264,9 +263,6 @@ def compute_flags(
 
     if preapproved == "No":
         flags.append("Pre-approval recommended")
-
-    if pays_child_support == "Yes":
-        notes.append("Pays child support")
 
     if rep_agreement_signed == "Yes":
         flags.append("Buyer has indicated existing representation")
